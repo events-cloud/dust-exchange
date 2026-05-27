@@ -11,8 +11,10 @@ html, body { background: #000; min-height: 100vh; }
 .header { background: #000; border-bottom: 1px solid #ffa800; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
 .logo { font-size: 22px; font-weight: 700; color: #ffa800; letter-spacing: 3px; }
 .exchange-name { font-size: 10px; color: #555; letter-spacing: 1px; margin-top: 2px; }
-.market-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #4caf50; }
-.dot { width: 7px; height: 7px; background: #4caf50; border-radius: 50%; animation: pulse 1.5s infinite; }
+.market-status-closed { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #f44336; }
+.market-status-open { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #4caf50; }
+.dot-red { width: 7px; height: 7px; background: #f44336; border-radius: 50%; animation: pulse 1.5s infinite; }
+.dot-green { width: 7px; height: 7px; background: #4caf50; border-radius: 50%; animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 .ticker-bar { background: #0a0500; border-bottom: 1px solid #1a0f00; padding: 6px 0; overflow: hidden; white-space: nowrap; }
 .ticker-inner { display: inline-block; animation: scroll 28s linear infinite; }
@@ -28,6 +30,19 @@ html, body { background: #000; min-height: 100vh; }
 .index-name { font-size: 10px; color: #555; letter-spacing: 1px; margin-bottom: 5px; }
 .index-val { font-size: 20px; font-weight: 700; color: #fff; }
 .index-chg { font-size: 11px; margin-top: 3px; }
+.closed-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; z-index: 500; flex-direction: column; gap: 0; }
+.closed-box { border: 1px solid #ffa800; border-radius: 10px; padding: 40px 48px; text-align: center; background: #0a0500; max-width: 440px; width: 90%; }
+.closed-title { font-size: 13px; color: #555; letter-spacing: 3px; margin-bottom: 16px; }
+.closed-label { font-size: 36px; font-weight: 700; color: #f44336; letter-spacing: 4px; margin-bottom: 6px; }
+.closed-sub { font-size: 12px; color: #888; margin-bottom: 32px; letter-spacing: 1px; }
+.countdown-label { font-size: 10px; color: #555; letter-spacing: 2px; margin-bottom: 12px; }
+.countdown { display: flex; gap: 16px; justify-content: center; margin-bottom: 28px; }
+.cd-block { text-align: center; }
+.cd-val { font-size: 38px; font-weight: 700; color: #ffa800; line-height: 1; min-width: 56px; }
+.cd-unit { font-size: 9px; color: #555; letter-spacing: 2px; margin-top: 4px; }
+.cd-sep { font-size: 32px; color: #333; padding-top: 4px; }
+.opens-at { font-size: 11px; color: #666; letter-spacing: 1px; }
+.opens-at span { color: #ffa800; }
 .alert-strip { background: #1a0800; border: 0.5px solid #ffa800; border-radius: 4px; margin: 10px 20px; padding: 8px 14px; font-size: 11px; color: #ffa800; letter-spacing: .5px; animation: alertpulse 2s infinite; }
 @keyframes alertpulse { 0%,100%{opacity:1} 50%{opacity:.7} }
 .table-header { display: grid; grid-template-columns: 90px 1fr 70px 1fr; gap: 4px; padding: 7px 20px; font-size: 10px; color: #444; letter-spacing: 1px; border-bottom: 1px solid #1a1a1a; border-top: 1px solid #1a1a1a; }
@@ -89,7 +104,7 @@ html, body { background: #000; min-height: 100vh; }
   <div class="content-wrap">
     <div class="header">
       <div><div class="logo">DUST EXCHANGE</div><div class="exchange-name">OFFICIAL TICKET MARKET — SEASON 2026</div></div>
-      <div class="market-status"><div class="dot"></div> MARKET OPEN</div>
+      <div id="marketStatusBadge" class="market-status-closed"><div class="dot-red"></div> MARKET CLOSED</div>
     </div>
     <div class="ticker-bar"><div class="ticker-inner" id="tickerInner"></div></div>
     <div class="index-row">
@@ -105,11 +120,50 @@ html, body { background: #000; min-height: 100vh; }
   </div>
   <div class="news-bar"><div class="news-inner" id="newsInner"></div></div>
 </div>
+
+<div class="closed-overlay" id="closedOverlay">
+  <div class="closed-box">
+    <div class="closed-title">DUST EXCHANGE</div>
+    <div class="closed-label">MARKET CLOSED</div>
+    <div class="closed-sub">Trading suspended — outside market hours</div>
+    <div class="countdown-label">OPENS IN</div>
+    <div class="countdown">
+      <div class="cd-block"><div class="cd-val" id="cdH">00</div><div class="cd-unit">HOURS</div></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-block"><div class="cd-val" id="cdM">00</div><div class="cd-unit">MIN</div></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-block"><div class="cd-val" id="cdS">00</div><div class="cd-unit">SEC</div></div>
+    </div>
+    <div class="opens-at">Market reopens <span>28 May 2026 — 09:00 Belgian time</span></div>
+  </div>
+</div>
+
 <div id="modalArea"></div>
 
 <script>
 const TICKET_URL='https://shop.paylogic.com/e7665ea1f957463cbf664bef0dfc52b9/tickets';
 const EVENT_URL='https://shop.paylogic.com/fd5545701e6c4bb0817c9fac7f5cf60c/tickets';
+
+const OPEN_TIME = new Date('2026-05-28T09:00:00+02:00');
+
+function checkMarket() {
+  const now = new Date();
+  const diff = OPEN_TIME - now;
+  if (diff <= 0) {
+    document.getElementById('closedOverlay').style.display = 'none';
+    document.getElementById('marketStatusBadge').className = 'market-status-open';
+    document.getElementById('marketStatusBadge').innerHTML = '<div class="dot-green"></div> MARKET OPEN';
+    return true;
+  }
+  const totalSec = Math.floor(diff / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  document.getElementById('cdH').textContent = String(h).padStart(2,'0');
+  document.getElementById('cdM').textContent = String(m).padStart(2,'0');
+  document.getElementById('cdS').textContent = String(s).padStart(2,'0');
+  return false;
+}
 
 const tickets=[
   {sym:'FRI',name:'Friday',sub:'Single day pass',type:'normal',buyUrl:TICKET_URL,currentPrice:50,wavePrices:[40,45,50,53,60],waveLabels:['Early Bird','Wave 1','Wave 2 ★','Wave 3','Final'],currentWave:2,demand:'low',avail:88,maxAvail:200},
@@ -259,9 +313,24 @@ function closeModal(){document.getElementById('modalArea').innerHTML='';}
 
 renderStocks();renderTicker();renderNews();
 prevCap=state.reduce((a,s)=>a+s.displayPrice*(s.maxAvail-s.avail+1),0);
-setInterval(()=>{updateChg();renderTicker();},1800);
-setInterval(updateDemand,3200);
-setInterval(updateIndexes,2500);
+
+const marketOpen = checkMarket();
+setInterval(checkMarket, 1000);
+
+if(marketOpen){
+  setInterval(()=>{updateChg();renderTicker();},1800);
+  setInterval(updateDemand,3200);
+  setInterval(updateIndexes,2500);
+} else {
+  setInterval(()=>{
+    const open = checkMarket();
+    if(open){
+      setInterval(()=>{updateChg();renderTicker();},1800);
+      setInterval(updateDemand,3200);
+      setInterval(updateIndexes,2500);
+    }
+  },1000);
+}
 </script>
 </body>
 </html>
